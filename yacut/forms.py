@@ -1,14 +1,12 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import MultipleFileField
 from wtforms import StringField, SubmitField, URLField
-from wtforms.validators import (
-    DataRequired, Length, Optional, Regexp, ValidationError
+from wtforms.validators import DataRequired, Length, Optional, Regexp
+
+from yacut.constants import (
+    CUSTOM_ID_FORMAT_MSG, CUSTOM_ID_LENGTH_MSG, SHORT_ID_MAX_LENGTH,
+    SHORT_ID_PATTERN
 )
-
-from .models import URLMap
-
-SHORT_ID_PATTERN = r'^[A-Za-z0-9]*$'
-DUPLICATE_MSG = 'Предложенный вариант короткой ссылки уже существует.'
 
 
 class ShortenerForm(FlaskForm):
@@ -20,23 +18,11 @@ class ShortenerForm(FlaskForm):
         'Ваш вариант короткой ссылки',
         validators=[
             Optional(),
-            Length(1, 16, message='Не более 16 символов'),
-            Regexp(
-                SHORT_ID_PATTERN,
-                message='Допустимы только латинские буквы и цифры'
-            )
+            Length(1, SHORT_ID_MAX_LENGTH, message=CUSTOM_ID_LENGTH_MSG),
+            Regexp(SHORT_ID_PATTERN, message=CUSTOM_ID_FORMAT_MSG)
         ]
     )
     submit = SubmitField('Создать')
-
-    def validate_custom_id(self, field):
-        if not field.data:
-            return
-        if (
-            field.data == 'files'
-            or URLMap.query.filter_by(short=field.data).first() is not None
-        ):
-            raise ValidationError(DUPLICATE_MSG)
 
 
 class FilesForm(FlaskForm):

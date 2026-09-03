@@ -1,19 +1,11 @@
-import re
+from http import HTTPStatus
 
-from flask import jsonify, request, url_for
+from flask import jsonify, request
 
-from . import app, db
+from . import app
+from .constants import DUPLICATE_SHORT_ID_MSG, INVALID_SHORT_ID_MSG
 from .error_handlers import InvalidAPIUsage
-from .models import URLMap
-from .views import get_unique_short_id
-
-SHORT_ID_PATTERN = re.compile(r'^[A-Za-z0-9]+$')
-DUPLICATE_MSG = 'Предложенный вариант короткой ссылки уже существует.'
-INVALID_SHORT_ID_MSG = 'Указано недопустимое имя для короткой ссылки'
-
-
-def is_valid_short_id(short_id):
-    return len(short_id) <= 16 and SHORT_ID_PATTERN.match(short_id)
+from .models import InvalidShortIDError, ShortIDExistsError, URLMap
 
 
 @app.route('/api/id/', methods=['POST'])
@@ -23,27 +15,18 @@ def create_id():
         raise InvalidAPIUsage('Отсутствует тело запроса')
     if 'url' not in data:
         raise InvalidAPIUsage('"url" является обязательным полем!')
-    custom_id = data.get('custom_id')
-    if custom_id:
-        if not is_valid_short_id(custom_id):
-            raise InvalidAPIUsage(INVALID_SHORT_ID_MSG)
-        if URLMap.query.filter_by(short=custom_id).first() is not None:
-            raise InvalidAPIUsage(DUPLICATE_MSG)
-        short = custom_id
-    else:
-        short = get_unique_short_id()
-    url_map = URLMap(original=data['url'], short=short)
-    db.session.add(url_map)
-    db.session.commit()
-    return jsonify({
-        'url': url_map.original,
-        'short_link': url_for('redirect_view', short_id=short, _external=True)
-    }), 201
+    try:
+        url_map = URLMap.create(data['url'], data.get('custom_id'))
+    except InvalidShortIDError:
+        raise InvalidAPIUsage(INVALID_SHORT_ID_MSG)
+    except ShortIDExistsError:
+        raise InvalidAPIUsage(DUPLICATE_SHORT_ID_MSG)
+    return jsonify(url_map.to_dict()), HTTPStatus.CREATED
 
 
 @app.route('/api/id/<short_id>/', methods=['GET'])
 def get_url(short_id):
-    url_map = URLMap.query.filter_by(short=short_id).first()
+    url_map = URLMap.get_by_short_id(short_id)
     if url_map is None:
-        raise InvalidAPIUsage('Указанный id не найден', 404)
-    return jsonify({'url': url_map.original})
+        raise InvalidAPIUsage('Указанный id не найден', HTTPStatus.NOT_FOUND)
+    return jsonify(url=url_map.original)
