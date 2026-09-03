@@ -11,3 +11,6 @@ DUPLICATE_SHORT_ID_MSG = 'Предложенный вариант коротко
 INVALID_SHORT_ID_MSG = 'Указано недопустимое имя для короткой ссылки'
 CUSTOM_ID_LENGTH_MSG = f'Не более {SHORT_ID_MAX_LENGTH} символов'
 CUSTOM_ID_FORMAT_MSG = 'Допустимы только латинские буквы и цифры'
+SHORT_ID_GENERATION_ERROR_MSG = (
+    'Не удалось сгенерировать уникальный короткий идентификатор'
+)

@@ -3,9 +3,11 @@ from http import HTTPStatus
 from flask import jsonify, request
 
 from . import app
-from .constants import DUPLICATE_SHORT_ID_MSG, INVALID_SHORT_ID_MSG
 from .error_handlers import InvalidAPIUsage
-from .models import InvalidShortIDError, ShortIDExistsError, URLMap
+from .exceptions import (
+    InvalidShortIDError, ShortIDExistsError, ShortIDGenerationError
+)
+from .models import URLMap
 
 
 @app.route('/api/id/', methods=['POST'])
@@ -17,10 +19,10 @@ def create_id():
         raise InvalidAPIUsage('"url" является обязательным полем!')
     try:
         url_map = URLMap.create(data['url'], data.get('custom_id'))
-    except InvalidShortIDError:
-        raise InvalidAPIUsage(INVALID_SHORT_ID_MSG)
-    except ShortIDExistsError:
-        raise InvalidAPIUsage(DUPLICATE_SHORT_ID_MSG)
+    except (
+        InvalidShortIDError, ShortIDExistsError, ShortIDGenerationError
+    ) as error:
+        raise InvalidAPIUsage(str(error)) from error
     return jsonify(url_map.to_dict()), HTTPStatus.CREATED
 
 

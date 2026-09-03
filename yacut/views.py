@@ -3,10 +3,10 @@ from http import HTTPStatus
 from flask import abort, flash, redirect, render_template
 
 from . import app
-from .constants import DUPLICATE_SHORT_ID_MSG
 from .disk import async_upload_files_to_disk
+from .exceptions import ShortIDExistsError, ShortIDGenerationError
 from .forms import FilesForm, ShortenerForm
-from .models import ShortIDExistsError, URLMap
+from .models import URLMap
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -17,8 +17,8 @@ def index_view():
             url_map = URLMap.create(
                 form.original_link.data, form.custom_id.data
             )
-        except ShortIDExistsError:
-            flash(DUPLICATE_SHORT_ID_MSG)
+        except (ShortIDExistsError, ShortIDGenerationError) as error:
+            flash(str(error))
             return render_template('index.html', form=form)
         return render_template(
             'index.html', form=form, short_link=url_map.get_short_link()

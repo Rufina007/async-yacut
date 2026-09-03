@@ -15,7 +15,9 @@
   <body>
     {% include "header.html" %}
     <main>
-      {% block content %}{% endblock content %}
+      <section class="container my-5 px-4">
+        {% block content %}{% endblock content %}
+      </section>
     </main>
     {% include "footer.html" %}
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>

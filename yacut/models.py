@@ -6,17 +6,13 @@ from flask import url_for
 
 from yacut import db
 from yacut.constants import (
-    MAX_SHORT_ID_ATTEMPTS, RESERVED_SHORT_IDS, SHORT_ID_ALPHABET,
+    DUPLICATE_SHORT_ID_MSG, INVALID_SHORT_ID_MSG, MAX_SHORT_ID_ATTEMPTS,
+    RESERVED_SHORT_IDS, SHORT_ID_ALPHABET, SHORT_ID_GENERATION_ERROR_MSG,
     SHORT_ID_LENGTH, SHORT_ID_MAX_LENGTH, SHORT_ID_PATTERN
 )
-
-
-class ShortIDExistsError(Exception):
-    pass
-
-
-class InvalidShortIDError(Exception):
-    pass
+from yacut.exceptions import (
+    InvalidShortIDError, ShortIDExistsError, ShortIDGenerationError
+)
 
 
 def generate_short_id():
@@ -37,6 +33,10 @@ class URLMap(db.Model):
     def to_dict(self):
         return dict(url=self.original, short_link=self.get_short_link())
 
+    @classmethod
+    def get_by_short_id(cls, short_id):
+        return cls.query.filter_by(short=short_id).first()
+
     @staticmethod
     def is_valid_short_id(short_id):
         return (
@@ -44,16 +44,12 @@ class URLMap(db.Model):
             and re.match(SHORT_ID_PATTERN, short_id) is not None
         )
 
-    @staticmethod
-    def is_short_id_taken(short_id):
+    @classmethod
+    def is_short_id_taken(cls, short_id):
         return (
             short_id in RESERVED_SHORT_IDS
-            or URLMap.query.filter_by(short=short_id).first() is not None
+            or cls.get_by_short_id(short_id) is not None
         )
-
-    @classmethod
-    def get_by_short_id(cls, short_id):
-        return cls.query.filter_by(short=short_id).first()
 
     @classmethod
     def get_unique_short_id(cls):
@@ -61,17 +57,15 @@ class URLMap(db.Model):
             short_id = generate_short_id()
             if not cls.is_short_id_taken(short_id):
                 return short_id
-        raise RuntimeError(
-            'Не удалось сгенерировать уникальный короткий идентификатор'
-        )
+        raise ShortIDGenerationError(SHORT_ID_GENERATION_ERROR_MSG)
 
     @classmethod
     def create(cls, original, custom_id=None):
         if custom_id:
             if not cls.is_valid_short_id(custom_id):
-                raise InvalidShortIDError()
+                raise InvalidShortIDError(INVALID_SHORT_ID_MSG)
             if cls.is_short_id_taken(custom_id):
-                raise ShortIDExistsError()
+                raise ShortIDExistsError(DUPLICATE_SHORT_ID_MSG)
             short = custom_id
         else:
             short = cls.get_unique_short_id()
